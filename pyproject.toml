@@ -1,0 +1,11 @@
+[project]
+name = "cecs451-group-project"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "google-genai>=3.3.0",
+    "streamlit>=1.67.0",
+]
+
+[tool.uv]
+package = false
