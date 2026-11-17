@@ -1,5 +1,7 @@
 import pandas as pd
 import streamlit as st
+import os
+from gemini_classifier import classify_comment
 
 st.title("Patient-Feedback Analyzer")
 st.write("Upload fictional patient comments to review feedback.")
@@ -57,14 +59,136 @@ if uploaded_file is not None:
         st.stop()
 
     st.success(f"Successfully loaded {len(df)} comments.")
+
+    # Clear previous results when a different file is uploaded.
+    file_contents = uploaded_file.getvalue()
+
+    if st.session_state.get("analyzed_file") != file_contents:
+        st.session_state["analyzed_file"] = file_contents
+        st.session_state["analysis_results"] = None
+
+    if st.button("Analyze comments"):
+        if not os.environ.get("GEMINI_API_KEY"):
+            st.error("Gemini API key is missing. Start the app from the terminal where you set the key.")
+        else:
+            results = []
+            progress = st.progress(0)
+
+            allowed_topics = {
+                "scheduling", "wait_times", "staff_communication",
+                "billing", "other"
+            }
+            allowed_sentiments = {
+                "positive", "negative", "neutral", "mixed"
+            }
+
+            for number, row in enumerate(df.to_dict("records"), start=1):
+                result_row = row.copy()
+
+                try:
+                    prediction = classify_comment(row["comment_text"])
+                    topics = prediction["topics"]
+                    sentiment = prediction["sentiment"]
+
+                    if (
+                        not isinstance(topics, list)
+                        or not topics
+                        or any(topic not in allowed_topics for topic in topics)
+                        or ("other" in topics and len(topics) > 1)
+                        or sentiment not in allowed_sentiments
+                    ):
+                        raise ValueError("Invalid classification")
+
+                    result_row["topics"] = ", ".join(
+                        topic.replace("_", " ") for topic in topics
+                    )
+                    result_row["sentiment"] = sentiment
+                    result_row["status"] = "success"
+
+                except Exception:
+                    result_row["topics"] = ""
+                    result_row["sentiment"] = ""
+                    result_row["status"] = "failed"
+
+                results.append(result_row)
+                progress.progress(number / len(df))
+
+            st.session_state["analysis_results"] = pd.DataFrame(results)
+
+    if st.session_state.get("analysis_results") is not None:
+        df = st.session_state["analysis_results"].copy()
+        failed_count = (df["status"] == "failed").sum()
+
+        if failed_count:
+            st.warning(f"{failed_count} comments could not be classified.")
+        else:
+            st.success("All comments classified successfully.")
+
+    if st.session_state.get("analysis_results") is not None:
+        successful_df = df[df["status"] == "success"]
+
+        if not successful_df.empty:
+            st.subheader("Feedback summary")
+
+            st.caption(
+                "Charts include successfully classified comments only. "
+                "A comment can have multiple topics."
+            )
+
+            topic_counts = (
+                successful_df["topics"]
+                .str.split(", ")
+                .explode()
+                .value_counts()
+            )
+
+            sentiment_counts = (
+                successful_df["sentiment"]
+                .value_counts()
+                .reindex(
+                    ["positive", "negative", "neutral", "mixed"],
+                    fill_value=0
+                )
+            )
+
+            st.write("Comments by topic")
+            st.bar_chart(topic_counts)
+
+            st.write("Comments by sentiment")
+            st.bar_chart(sentiment_counts)
+
     st.subheader("Uploaded comments")
     search_text = st.text_input("Search comments")
 
     filtered_df = df
 
+    if "topics" in df.columns:
+        selected_topic = st.selectbox(
+            "Filter by topic",
+            ["All", "scheduling", "wait times",
+             "staff communication", "billing", "other"]
+        )
+
+        selected_sentiment = st.selectbox(
+            "Filter by sentiment",
+            ["All", "positive", "negative", "neutral", "mixed"]
+        )
+
+        if selected_topic != "All":
+            filtered_df = filtered_df[
+                filtered_df["topics"].str.split(", ").apply(
+                    lambda topics: selected_topic in topics
+                )
+            ]
+
+        if selected_sentiment != "All":
+            filtered_df = filtered_df[
+                filtered_df["sentiment"] == selected_sentiment
+            ]
+
     if search_text.strip():
-        filtered_df = df[
-            df["comment_text"].str.contains(
+        filtered_df = filtered_df[
+            filtered_df["comment_text"].str.contains(
                 search_text.strip(), case=False, regex=False
             )
         ]

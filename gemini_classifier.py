@@ -13,7 +13,7 @@ def get_client():
 
 def classify_comment(comment_text: str) -> dict:
     threshold = 0.5
-    topic_names = ["wait_times", "staff_communication", "billing"]
+    topic_names = ["scheduling", "wait_times", "staff_communication", "billing"]
     feedback = f"The following is feedback from a patient at a clinic: {comment_text}"
     client = get_client()
 
@@ -27,6 +27,10 @@ def classify_comment(comment_text: str) -> dict:
             },
         ],
         questions={
+            "scheduling": {
+                "type": "noul",
+                "instructions": "Is this feedback related to booking, rescheduling, canceling, or finding an available appointment?",
+            },
             "wait_times": {
                 "type": "noul",
                 "instructions": "Is this feedback related to wait times?",

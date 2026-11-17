@@ -10,6 +10,11 @@ A CECS 451 group project for exploring fictional patient feedback.
 - Search comments without matching letter case.
 - Download displayed comments as a CSV.
 - Download a fictional sample CSV.
+- Classify comments with Gemini into topics and overall sentiment.
+- Display topic and sentiment charts.
+- Filter results by topic and sentiment.
+- Preserve analysis results during searches and filtering.
+- Flag failed classifications and exclude them from charts.
 
 ## Run the dashboard on Windows
 
@@ -22,8 +27,17 @@ py -3.13 -m venv .venv
 Install the dashboard dependencies:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install streamlit pandas
+.\.venv\Scripts\python.exe -m pip install uv
+.\.venv\Scripts\uv.exe sync --locked
 ```
+Set your Gemini API key in the same PowerShell terminal:
+
+```powershell
+$env:GEMINI_API_KEY = [System.Net.NetworkCredential]::new("", (Read-Host "Paste your Gemini API key" -AsSecureString)).Password
+```
+Enter your key at the hidden prompt. This setting lasts for the current
+terminal session. Launch Streamlit from that same terminal.
+Never commit an API key.
 
 Start the app:
 
@@ -48,9 +62,10 @@ and export.
 
 ## Try the app
 
-Download the sample CSV from the dashboard and upload it.
-Five comments should appear. Search for "bill" to display one comment,
-then download the displayed results.
+Click Download sample CSV, then upload that file. Confirm that five comments load. 
+Click Analyze comments and wait for the topic and sentiment charts to appear. 
+Under Uploaded comments, search for bill. Only comment 003 should appear. 
+Click Download displayed comments to export that row with its topics, sentiment, and status.
 
 ## Manual validation checks
 
@@ -65,18 +80,28 @@ Upload each file separately:
 
 ## Current limitations and remaining work
 
-The current dashboard supports CSV review, search, and export.
-Gemini classification is not connected yet. Topic and sentiment
-charts, classification filters, and model evaluation remain planned.
+Gemini classification, charts, search, filters, and CSV export are
+connected. Five fictional demonstration comments were successfully
+classified during a functional check; this is not a formal accuracy
+evaluation.
+
+Larger-dataset evaluation and comparison with a keyword baseline remain.
+Requests run sequentially, so larger uploads take longer. API access,
+quotas, and network failures can affect analysis.
+
+Results are stored in the current Streamlit session, not permanently.
+Clicking Analyze comments again submits the entire uploaded dataset again.
+Charts summarize successful classifications across the whole dataset;
+filters affect the table and export.
 
 Use fictional feedback only. This prototype is not intended for
 clinical decisions or medical advice.
 
 ## Current architecture
 
-CSV upload → pandas reads and validates the data → Streamlit displays
-the comments → keyword search filters the table → CSV download exports
-the displayed rows.
+CSV upload → pandas validation → Gemini classification on button click
+→ results stored in Streamlit session state → summary charts and
+searchable/filterable table → CSV export.
 
 ## Code overview
 
@@ -85,18 +110,19 @@ app.py contains the dashboard interface and CSV processing:
 1. Displays upload instructions and a downloadable fictional sample.
 2. Reads uploaded CSV values as text to preserve IDs such as 001.
 3. Checks required columns, blank fields, and duplicate IDs.
-4. Displays valid comments in a table.
-5. Filters comments using a case-insensitive literal text search.
-6. Exports the displayed rows without the pandas row index.
+4. Previews valid comments and calls the Gemini classifier for each comment when the user clicks Analyze comments.
+5. Stores results in the current session and charts successfully classified comments.
+6. Applies text, topic, and sentiment filters to the table and exports only the displayed rows.
 
 sample_feedback.csv contains five fictional demonstration comments.
 The three test CSV files contain intentionally invalid inputs for
 checking validation.
 
-## Planned Gemini integration
+## Gemini integration
 
-The dashboard will call classify_comment(comment_text) from
-gemini_classifier.py.
+The dashboard calls classify_comment(comment_text) from
+gemini_classifier.py using gemini-decision-1 through the Decisions API.
+Specific topics are included when their returned score is at least 0.5.
 
 The agreed return format is a dictionary containing:
 
