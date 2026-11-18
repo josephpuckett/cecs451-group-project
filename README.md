@@ -30,11 +30,13 @@ Install the dashboard dependencies:
 .\.venv\Scripts\python.exe -m pip install uv
 .\.venv\Scripts\uv.exe sync --locked
 ```
+
 Set your Gemini API key in the same PowerShell terminal:
 
 ```powershell
 $env:GEMINI_API_KEY = [System.Net.NetworkCredential]::new("", (Read-Host "Paste your Gemini API key" -AsSecureString)).Password
 ```
+
 Enter your key at the hidden prompt. This setting lasts for the current
 terminal session. Launch Streamlit from that same terminal.
 Never commit an API key.
@@ -49,6 +51,56 @@ Keep the terminal running while using the app. If the browser does not
 open automatically, visit http://localhost:8501.
 
 If .venv already exists, skip the environment creation step.
+
+## Run the dashboard on Linux/WSL
+
+Use Python 3.13. From the project folder, create a virtual environment:
+
+```bash
+python -m venv .venv
+```
+
+Install the dashboard dependencies:
+
+```bash
+.venv/bin/python -m pip install uv
+.venv/bin/uv sync --locked
+```
+
+Set your Gemini API key in the same bash terminal:
+
+```bash
+read -sp "Paste your Gemini API key" GEMINI_API_KEY && export GEMINI_API_KEY && echo
+```
+
+Enter your key at the hidden prompt. This setting lasts for the current
+terminal session. Launch Streamlit from that same terminal.
+Never commit an API key.
+
+Start the app:
+
+```powershell
+.venv/bin/python -m streamlit run app.py
+```
+
+Keep the terminal running while using the app. If the browser does not
+open automatically, visit http://localhost:8501.
+
+If .venv already exists, skip the environment creation step.
+
+## If you have uv installed
+
+Install the dashboard dependencies:
+
+```bash
+uv sync --locked
+```
+
+Start the app:
+
+```bash
+uv run streamlit run app.py
+```
 
 ## CSV format
 
